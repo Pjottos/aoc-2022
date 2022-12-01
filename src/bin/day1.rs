@@ -1,15 +1,11 @@
-use aoc_2022::Harness;
+use aoc_2022::*;
 
 fn main() {
     Harness::begin()
         .day(1)
         .extract(|text| {
-            text.split("\n\n").map(|block| {
-                block
-                    .lines()
-                    .map(|line| line.parse::<u32>().unwrap())
-                    .sum::<u32>()
-            })
+            text.split("\n\n")
+                .map(|block| block.lines().map(fast_u32_parse).sum::<u32>())
         })
         .run_part(1, |sums| sums.clone().max().unwrap())
         .run_part(2, |sums| {
