@@ -9,8 +9,19 @@ fn main() {
         })
         .run_part(1, |sums| sums.clone().max().unwrap())
         .run_part(2, |sums| {
-            let mut sums = sums.clone().collect::<Vec<_>>();
-            sums.sort_unstable();
-            sums.iter().rev().take(3).sum::<u32>()
+            let mut result = [0; 3];
+            for sum in sums.clone() {
+                if sum > result[0] {
+                    result[2] = result[1];
+                    result[1] = result[0];
+                    result[0] = sum;
+                } else if sum > result[1] {
+                    result[2] = result[1];
+                    result[1] = sum;
+                } else if sum > result[2] {
+                    result[2] = sum;
+                }
+            }
+            result.iter().sum::<u32>()
         });
 }

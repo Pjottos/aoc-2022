@@ -2,6 +2,7 @@ mod harness;
 
 pub use harness::Harness;
 
+#[inline]
 pub fn fast_u32_parse(text: &str) -> u32 {
     // Numbers with at most 8 decimal digits are guaranteed to fit in a u32
     const POWERS_OF_10: [u32; 9] = [
