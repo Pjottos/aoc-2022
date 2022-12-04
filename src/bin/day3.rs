@@ -12,16 +12,10 @@ fn main() {
             rucksacks
                 .clone()
                 .map(|rucksack| {
-                    let mut mask_a = 0;
-                    let mut mask_b = 0;
                     let (comp_a, comp_b) = rucksack.split_at(rucksack.len() / 2);
-                    for &item_kind in comp_a {
-                        mask_a |= 1u64 << priority(item_kind);
-                    }
-                    for &item_kind in comp_b {
-                        mask_b |= 1u64 << priority(item_kind);
-                    }
-                    (mask_a & mask_b).trailing_zeros()
+                    let set_a = comp_a.iter().copied().fold(0, priority_set_fold);
+                    let set_b = comp_b.iter().copied().fold(0, priority_set_fold);
+                    (set_a & set_b).trailing_zeros()
                 })
                 .sum::<u32>()
         })
@@ -30,23 +24,22 @@ fn main() {
                 .clone()
                 .array_chunks::<3>()
                 .map(|group| {
-                    let mut masks = [0; 3];
-                    for (i, &rucksack) in group.iter().enumerate() {
-                        for &item_kind in rucksack {
-                            masks[i] |= 1u64 << priority(item_kind);
-                        }
-                    }
-                    masks.iter().fold(!0, u64::bitand).trailing_zeros()
+                    group
+                        .iter()
+                        .map(|rucksack| rucksack.iter().copied().fold(0, priority_set_fold))
+                        .fold(!0, u64::bitand)
+                        .trailing_zeros()
                 })
                 .sum::<u32>()
         });
 }
 
 #[inline]
-fn priority(item_kind: u8) -> u8 {
-    if item_kind & 0x20 != 0 {
-        item_kind - 0x60
+fn priority_set_fold(set: u64, item: u8) -> u64 {
+    let priority = if item & 0x20 != 0 {
+        item - 0x60
     } else {
-        item_kind - (0x40 - 26)
-    }
+        item - (0x40 - 26)
+    };
+    set | (1 << priority)
 }
