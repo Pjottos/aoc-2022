@@ -14,7 +14,6 @@ fn main() {
         })
         .run_part(1, |pairs| {
             pairs
-                .clone()
                 .filter(|(a, b)| {
                     (a.start >= b.start && a.end <= b.end) || (b.start >= a.start && b.end <= a.end)
                 })
@@ -22,7 +21,6 @@ fn main() {
         })
         .run_part(2, |pairs| {
             pairs
-                .clone()
                 .filter(|(a, b)| {
                     a.contains(&b.start)
                         || a.contains(&(b.end - 1))

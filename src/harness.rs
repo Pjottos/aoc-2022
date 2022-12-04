@@ -1,16 +1,17 @@
 use criterion::Criterion;
 use reqwest::{blocking::ClientBuilder, cookie};
 
-use std::{cell::RefCell, env, fmt::Debug, fs, sync::Arc};
+use std::{cell::RefCell, env, fmt::Debug, fs, marker::PhantomData, sync::Arc};
 
-pub struct Harness<E> {
+pub struct Harness<E, M> {
     day: Option<u32>,
-    extracted_input: Option<E>,
+    extract_func: Option<E>,
     input_text: Option<String>,
     criterion: Option<RefCell<Criterion>>,
+    _phantom: PhantomData<M>,
 }
 
-impl<'a, E> Harness<E> {
+impl<'a, ET: 'a, EF: Fn(&'a str) -> ET> Harness<EF, ET> {
     pub fn begin() -> Self {
         let criterion = env::args()
             .any(|arg| arg == "--bench")
@@ -18,26 +19,24 @@ impl<'a, E> Harness<E> {
 
         Self {
             day: None,
-            extracted_input: None,
+            extract_func: None,
             input_text: None,
             criterion,
+            _phantom: PhantomData,
         }
     }
 
-    pub fn day(&'a mut self, day: u32) -> &'a mut Self {
+    pub fn day(&mut self, day: u32) -> &mut Self {
         self.day = Some(day);
         self
     }
 
-    pub fn input_override<S: Into<String>>(&'a mut self, input_override: S) -> &'a mut Self {
+    pub fn input_override<S: Into<String>>(&mut self, input_override: S) -> &mut Self {
         self.input_text = Some(input_override.into());
         self
     }
 
-    pub fn extract<X>(&'a mut self, extractor: X) -> &'a Self
-    where
-        X: Fn(&'a str) -> E,
-    {
+    pub fn extract(&mut self, extract_func: EF) -> &Self {
         let day = self.day.unwrap();
         if self.input_text.is_none() {
             let input_path = format!("inputs/{}.txt", day);
@@ -48,37 +47,29 @@ impl<'a, E> Harness<E> {
             });
             self.input_text = Some(text);
         }
-        let text = self.input_text.as_ref().unwrap();
 
-        self.extracted_input = Some(extractor(text));
-        if let Some(criterion) = self.criterion.as_ref() {
-            criterion
-                .borrow_mut()
-                .bench_function(&format!("day {} extract", day), |b| {
-                    b.iter(|| extractor(text))
-                });
-        }
-
+        self.extract_func = Some(extract_func);
         self
     }
 
-    pub fn run_part<F, R>(&'a self, part_num: u32, func: F) -> &'a Self
+    pub fn run_part<F, R>(&'a self, part_num: u32, part_func: F) -> &Self
     where
-        F: Fn(&E) -> R,
+        F: Fn(ET) -> R,
         R: Debug,
     {
-        let input = self
-            .extracted_input
+        let extract_func = self
+            .extract_func
             .as_ref()
-            .expect("input not extracted yet");
+            .expect("extract function should be set when running a part");
+        let input_text = self.input_text.as_ref().unwrap();
 
-        let res = func(input);
+        let res = part_func(extract_func(input_text));
         println!("Part {}: {:?}", part_num, res);
 
         if let Some(criterion) = self.criterion.as_ref() {
             criterion.borrow_mut().bench_function(
                 &format!("day {} part {}", self.day.unwrap(), part_num),
-                |b| b.iter(|| func(input)),
+                |b| b.iter(|| part_func(extract_func(input_text))),
             );
         }
 

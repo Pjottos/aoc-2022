@@ -31,18 +31,17 @@ fn main() {
 
             (pre, chunks, post)
         })
-        .run_part(1, |extracted| {
-            let (pre, chunks, post) = extracted;
+        .run_part(1, |(pre, chunks, post)| {
             let scalar_fold_func = |score, (a, b): (u16, u16)| {
                 let play_score = b + 1;
                 let outcome_score = ((b + 4 - a) % 3) * 3;
                 score + play_score + outcome_score
             };
 
-            let mut score = pre.clone().fold(0, scalar_fold_func);
+            let mut score = pre.fold(0, scalar_fold_func);
 
             let mut score_vector = u16x16::default();
-            for (a, b) in chunks.clone() {
+            for (a, b) in chunks {
                 let play_score = b + u16x16::splat(1);
                 let outcome_score =
                     ((b + u16x16::splat(4) - a) % u16x16::splat(3)) * u16x16::splat(3);
@@ -50,12 +49,11 @@ fn main() {
             }
             score += score_vector.as_array().iter().sum::<u16>();
 
-            score = post.clone().fold(score, scalar_fold_func);
+            score = post.fold(score, scalar_fold_func);
 
             score
         })
-        .run_part(2, |extracted| {
-            let (pre, chunks, post) = extracted;
+        .run_part(2, |(pre, chunks, post)| {
             let scalar_fold_func = |score, (a, b): (u16, u16)| {
                 let play_to_make = (a + 2 + b) % 3;
                 let play_score = play_to_make + 1;
@@ -63,10 +61,10 @@ fn main() {
                 score + play_score + outcome_score
             };
 
-            let mut score = pre.clone().fold(0, scalar_fold_func);
+            let mut score = pre.fold(0, scalar_fold_func);
 
             let mut score_vector = u16x16::default();
-            for (a, b) in chunks.clone() {
+            for (a, b) in chunks {
                 let play_to_make = (a + u16x16::splat(2) + b) % u16x16::splat(3);
                 let play_score = play_to_make + u16x16::splat(1);
                 let outcome_score = b * u16x16::splat(3);
@@ -74,7 +72,7 @@ fn main() {
             }
             score += score_vector.as_array().iter().sum::<u16>();
 
-            score = post.clone().fold(score, scalar_fold_func);
+            score = post.fold(score, scalar_fold_func);
 
             score
         });

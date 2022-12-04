@@ -10,7 +10,6 @@ fn main() {
         .extract(|text| text.lines().map(str::as_bytes))
         .run_part(1, |rucksacks| {
             rucksacks
-                .clone()
                 .map(|rucksack| {
                     let (comp_a, comp_b) = rucksack.split_at(rucksack.len() / 2);
                     let set_a = comp_a.iter().copied().fold(0, priority_set_fold);
@@ -21,7 +20,6 @@ fn main() {
         })
         .run_part(2, |rucksacks| {
             rucksacks
-                .clone()
                 .array_chunks::<3>()
                 .map(|group| {
                     group
