@@ -9,7 +9,7 @@ pub fn fast_u32_parse(text: &str) -> u32 {
         1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000,
     ];
     text.as_bytes()
-        .into_iter()
+        .iter()
         .rev()
         .take(8)
         .map(|b| b - b'0')
