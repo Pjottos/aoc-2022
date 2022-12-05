@@ -55,18 +55,9 @@ fn parse_ids(line: &str) -> [u8; 4] {
         // Parse at most 2 digits correctly
         let mut multiplier = 1;
         let mut num = 0;
-        loop {
-            match bytes.next() {
-                Some(byte) => {
-                    if byte < b'0' {
-                        break;
-                    } else {
-                        num += (byte - b'0') * multiplier;
-                        multiplier = 10;
-                    }
-                }
-                None => break,
-            }
+        while let Some(byte) = bytes.next().filter(|&b| b >= b'0') {
+            num += (byte - b'0') * multiplier;
+            multiplier = 10;
         }
         res[i] = num;
     }
