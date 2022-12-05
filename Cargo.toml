@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 criterion = "0.3"
 bytemuck = "1"
+arrayvec = "0.7"
 
 [dependencies.reqwest]
 version = "0.11"
