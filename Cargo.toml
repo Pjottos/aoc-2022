@@ -19,3 +19,6 @@ features = [
     "brotli",
     "deflate",
 ]
+
+[profile.release]
+debug = true
