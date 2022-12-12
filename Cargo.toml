@@ -8,6 +8,7 @@ criterion = "0.3"
 bytemuck = "1"
 arrayvec = "0.7"
 num = "0.4"
+dynasmrt = "1"
 
 [dependencies.reqwest]
 version = "0.11"
