@@ -5,7 +5,7 @@ use aoc_2022::*;
 
 use std::{
     arch::x86_64::*,
-    simd::{u16x16, u8x32, SimdUint},
+    simd::{u16x16, u8x16, u8x32, SimdPartialEq, SimdUint},
 };
 
 fn main() {
@@ -25,8 +25,8 @@ fn main() {
                 .flat_map(|v| v.as_array().array_chunks::<2>())
                 .chain(post.array_chunks::<2>())
                 .map(|round| {
-                    let a = round[0] - (b'A' as u16 | ((b' ' as u16) << 8));
-                    let b = round[1] - (b'X' as u16 | ((b'\n' as u16) << 8));
+                    let a = ((round[0] << 2) & 0x0C) as u8;
+                    let b = (round[1] & 0x03) as u8;
 
                     (a, b)
                 });
@@ -34,15 +34,27 @@ fn main() {
             (chunks, remainder)
         })
         .run_part(1, |(chunks, remainder)| {
-            let mut play_score = 0;
+            let mut play_score = chunks.len() as u16 * 32;
             let mut outcome_score = 0;
             let mut play_score_vector = u8x32::default();
             let mut outcome_score_vector = u8x32::default();
+            let lut = u8x16::from_array([
+                0xFF, 0xFF, 0xFF, 0xFF, 1, 2, 0, 0xFF, 0, 1, 2, 0xFF, 2, 0, 1, 0xFF,
+            ]);
             for (i, chunk) in chunks.enumerate() {
                 // This call isn't inlined if used in a .map, which is essential for performance
                 let (a, b) = pack_values(chunk);
-                play_score_vector += b + u8x32::splat(1);
-                outcome_score_vector += (b + u8x32::splat(4) - a) % u8x32::splat(3);
+
+                play_score_vector += b;
+                let new_outcome_score = unsafe {
+                    u8x32::from(_mm256_shuffle_epi8(
+                        _mm256_broadcastsi128_si256(lut.into()),
+                        (a | b).into(),
+                    ))
+                };
+                debug_assert!(!new_outcome_score.simd_eq(u8x32::splat(0xFF)).any());
+
+                outcome_score_vector += new_outcome_score;
                 // Prevent overflow
                 if i % (255 / 3) == 0 {
                     play_score += play_score_vector.cast::<u16>().reduce_sum();
@@ -55,28 +67,47 @@ fn main() {
             outcome_score += outcome_score_vector.cast::<u16>().reduce_sum();
 
             for (a, b) in remainder {
-                play_score += b + 1;
-                outcome_score += (b + 4 - a) % 3;
+                play_score += b as u16 + 1;
+                outcome_score += lut[(a | b) as usize] as u16;
             }
 
             play_score + outcome_score * 3
         })
         .run_part(2, |(chunks, remainder)| {
+            let mut play_score = 0;
+            let mut outcome_score = 0;
             let mut play_score_vector = u8x32::default();
             let mut outcome_score_vector = u8x32::default();
-            for chunk in chunks {
+            let lut = u8x16::from_array([
+                0xFF, 0xFF, 0xFF, 0xFF, 3, 1, 2, 0xFF, 1, 2, 3, 0xFF, 2, 3, 1, 0xFF,
+            ]);
+            for (i, chunk) in chunks.enumerate() {
                 let (a, b) = pack_values(chunk);
-                let play_to_make = (a + u8x32::splat(2) + b) % u8x32::splat(3);
-                play_score_vector += play_to_make + u8x32::splat(1);
+
+                let new_play_score = unsafe {
+                    u8x32::from(_mm256_shuffle_epi8(
+                        _mm256_broadcastsi128_si256(lut.into()),
+                        (a | b).into(),
+                    ))
+                };
+                debug_assert!(!new_play_score.simd_eq(u8x32::splat(0xFF)).any());
+
+                play_score_vector += new_play_score;
                 outcome_score_vector += b;
+                // Prevent overflow
+                if i % (255 / 3) == 0 {
+                    play_score += play_score_vector.cast::<u16>().reduce_sum();
+                    outcome_score += outcome_score_vector.cast::<u16>().reduce_sum();
+                    play_score_vector = u8x32::default();
+                    outcome_score_vector = u8x32::default();
+                }
             }
-            let mut play_score = play_score_vector.cast::<u16>().reduce_sum();
-            let mut outcome_score = outcome_score_vector.cast::<u16>().reduce_sum();
+            play_score += play_score_vector.cast::<u16>().reduce_sum();
+            outcome_score += outcome_score_vector.cast::<u16>().reduce_sum();
 
             for (a, b) in remainder {
-                let play_to_make = (a + 2 + b) % 3;
-                play_score += play_to_make + 1;
-                outcome_score += b;
+                play_score += lut[(a | b) as usize] as u16;
+                outcome_score += b as u16;
             }
 
             play_score + outcome_score * 3
@@ -134,10 +165,12 @@ fn pack_values(chunk: &[u16x16; 4]) -> (u8x32, u8x32) {
 
         let mut unpack_a = _mm256_blend_epi32::<0b11001100>(pack_a, pack_b);
         //println!("upck_a: {:02X?}", u8x32::from(unpack_a));
-        unpack_a = _mm256_sub_epi8(unpack_a, _mm256_set1_epi8(b'A' as i8));
+        // Starting from 1 in bits 2 and 3
+        unpack_a = _mm256_and_si256(_mm256_slli_epi16::<2>(unpack_a), _mm256_set1_epi8(0x0C));
         let mut unpack_b = _mm256_alignr_epi8::<8>(pack_b, pack_a);
         //println!("upck_b: {:02X?}", u8x32::from(unpack_b));
-        unpack_b = _mm256_sub_epi8(unpack_b, _mm256_set1_epi8(b'X' as i8));
+        // Starting from 0 in bits 0 and 1
+        unpack_b = _mm256_and_si256(unpack_b, _mm256_set1_epi8(0x03));
 
         (u8x32::from(unpack_a), u8x32::from(unpack_b))
     }
